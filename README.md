@@ -1,5 +1,7 @@
 # chrn
 
+Change release notes is based on [istio/test-infra](https://github.com/istio/test-infra/tree/master/toolbox/release_note_collector).
+
 ## Get the project
 
 With the GOPATH variable setted, download the project
