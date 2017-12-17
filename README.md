@@ -1,6 +1,6 @@
 # chrn
 
-## Get project
+## Get the project
 
 With the GOPATH variable setted, download the project
 ```

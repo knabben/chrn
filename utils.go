@@ -92,6 +92,7 @@ func (g GithubClient) SearchIssues(queries []string, keyWord string) (*github.Is
 	return issueResult, nil
 }
 
+// fetchLabel fetches the first label of the PR
 func fetchLabel(labels []github.Label) string {
 	for _, label := range labels {
 		if *label.Name != "release-note" {
@@ -111,6 +112,7 @@ func ContainsString(slice []string, target string) bool {
 	return false
 }
 
+// UpdateReleaseNotes update github release note
 func (g GithubClient) UpdateReleaseNotes(repo string, tag string, releaseNotes string) error {
 	release, _, err := g.client.Repositories.GetReleaseByTag(context.Background(), g.owner, repo, tag)
 	if err != nil {

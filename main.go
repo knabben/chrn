@@ -74,7 +74,6 @@ Changelog generator for GITHUB releases automatically.
 			log.Printf("Saving data on: %v", outputFile)
 			f.WriteString(content)
 
-			// Update release note on repository
 			if save {
 				log.Printf("Update GITHUB release notes")
 				if err := gh.UpdateReleaseNotes(repo, currentRelease, content); err != nil {
