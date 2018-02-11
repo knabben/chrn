@@ -58,8 +58,15 @@ func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, 
 	color.Cyan(fmt.Sprintf(">> Commiting to the branch"))
 	AddCommitBranch(dir, fileName, latestTag)
 
-	color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
-	PushOpenPR(dir, gh, latestTag, auth)
+	color.Yellow("Do you Want to proceed?")
+	reader := bufio.NewReader(os.Stdin)
+	continueProcess, _ := reader.ReadString('\n')
+
+	if continueProcess == "y\n" {
+		color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
+		PushOpenPR(dir, gh, latestTag, auth)
+	}
+
 }
 
 // PushOpenPR sends branch to remote origin and create a new PR
