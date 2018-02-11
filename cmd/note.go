@@ -60,7 +60,7 @@ func FirstReleaseChangelog(chFile *os.File) (string, string) {
 		}
 		// Try to find the first tag
 		if len(match) >= 1 && tag == "" {
-			tag = match[0][1]
+			tag = fmt.Sprintf("v%v", match[0][1])
 		}
 	}
 
