@@ -16,7 +16,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	ssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 var (
@@ -30,21 +30,27 @@ var (
 			gh := NewClientBasedOnToken(org, token)
 			dir, fileName := filepath.Split(file)
 
+			auth, err := ssh.NewPublicKeysFromFile(
+				"git",
+				fmt.Sprintf("%v/.ssh/id_rsa", os.Getenv("HOME")), "",
+			)
+			CheckIfError(err)
+
 			latestTag, err := BumpLastTagVersion(gh)
 			if err != nil {
 				latestTag = "0.0.1"
 			}
 
-			RunRotate(latestTag, dir, fileName, gh)
+			RunRotate(latestTag, dir, fileName, gh, auth)
 		},
 	}
 )
 
-func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient) {
+func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, auth *ssh.PublicKeys) {
 	color.Cyan(fmt.Sprintf(">> Using %v as the latest version for this project.", latestTag))
 
 	color.Cyan(fmt.Sprintf(">> Creating a new branch"))
-	CreateBranch(latestTag, dir)
+	CreateBranch(latestTag, dir, auth)
 
 	color.Cyan(fmt.Sprintf(">> Bumping changelog file"))
 	UpdateLogFile(latestTag)
@@ -53,17 +59,14 @@ func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient) 
 	AddCommitBranch(dir, fileName, latestTag)
 
 	color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
-	PushOpenPR(dir, gh, latestTag)
+	PushOpenPR(dir, gh, latestTag, auth)
 }
 
 // PushOpenPR sends branch to remote origin and create a new PR
-func PushOpenPR(repoPath string, gh *GithubClient, tag string) {
-	auth, err := ssh.NewPublicKeysFromFile("git", "/Users/amim/.ssh/id_rsa", "")
-	CheckIfError(err)
-
+func PushOpenPR(repoPath string, gh *GithubClient, tag string, auth *ssh.PublicKeys) {
 	repository, _ := git.PlainOpen(repoPath)
 
-	err = repository.Push(&git.PushOptions{
+	err := repository.Push(&git.PushOptions{
 		Auth:       auth,
 		RemoteName: "origin",
 	})
@@ -92,9 +95,15 @@ func AddCommitBranch(repoPath string, fileName string, tag string) {
 }
 
 // CreateBranch creates a new branch checkout
-func CreateBranch(tag string, repoPath string) {
+func CreateBranch(tag string, repoPath string, auth *ssh.PublicKeys) {
 	repository, _ := git.PlainOpen(repoPath)
 	worktree, _ := repository.Worktree()
+
+	err := worktree.Pull(&git.PullOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	})
+	CheckIfError(err)
 
 	headRef, err := repository.Head()
 	CheckIfError(err)

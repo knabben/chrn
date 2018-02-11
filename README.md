@@ -1,6 +1,12 @@
 # chrn
 
-Change release notes is based on [istio/test-infra](https://github.com/istio/test-infra/tree/master/toolbox/release_note_collector).
+A CHANGELOG rotator and Github release automator.
+
+The file is based on:
+http://keepachangelog.com/en/1.0.0/
+
+NOTE: Change release notes structure is based on [istio/test-infra](https://github.com/istio/test-infra/tree/master/toolbox/release_note_collector).
+
 
 ## Get the project
 
@@ -25,6 +31,15 @@ Generate the binary project
 make build
 ```
 
+## Knowing the flow
+
+1) changelog - You need to populate the CHANGELOG.md file, you can skip this step, and populate your file by hand OR you can follow the pattern and get the file done.
+
+2) rotate - Rotate your CHANGELOG with your new release (automatic discovery), create a PR with the bump version.
+
+3) note - Create a Github Release with the description of your last released tag.
+
+
 ## Configuring your PRs
 
 You will need to set some labels on your PRs, the first one is *release-note*, this is the main label, and is used to populate the changelog (you can change it via -l).
@@ -33,47 +48,40 @@ The second label you need to add is the grouper, so you can categorize PRs by *b
 
 ## Run it
 
-The software will run in two modes, both are based on:
+The steps can be skipped or followed. Suppose you have followed the keepachangelog pattern.
 
-http://keepachangelog.com/en/1.0.0/
+### CHANGELOG.md generator
 
-### Spin up mode
-
-You must pass the path of the CHANGELOG.md file with the repository, this mode will automatically update the headers with the new release version:
+After filling the PRs with correct labels, pass as arguments the name of user, the repository and the local CHANGELOG.md file.
 
 ```
-$ ./chrn rotate --user knabben --repo repo-test
+$ ./chrn changelog --user knabben --repo repo-test --file ~/Project/CHANGELOG.md --token token
+>>> Start fetching unreleased release note from knabben/repo-test
+>>> Getting PRs for [repo:knabben/repo-test label:release-note is:merged type:pr base:master merged:...]
+>>> Modifying changelog file
 ```
 
-### CHANGELOG generator
-
-Choose the current_release tag (ie v4.0) and the previous_release tag (ie v3.0). This is enough to filter data and save it on a file.
+You have a local modified CHANGELOG.md with the latest merged PRs title from the last release until now:
 
 ```
-$ ./chrn changelog --user knabben --repo repo-test -c v4.0 -p v3.0
-2017/12/17 19:56:53 Start fetching release note from knabben/repo-test
-2017/12/17 19:56:54 Query: [repo:knabben/repo-test is:merged type:pr merged:2017-12-17T13:52:38Z..2017-12-17T14:09:35Z base:master]
-2017/12/17 19:56:55 Saving data on: ./release-note
+## [Unreleased]
+## Bug
+- Some PR title
+
+## Enhancement
+- Another good PR title
+
+## [3.0.0] - 2018-02-11
 ```
 
-The final format will be something like:
+### Commit it and bump
+
+So lets say the latest Github release is tagged as v3.0.0, you have already modified your master and wants to release a minor version, in this case v3.1.0:
 
 ```
-$ cat release-note
-repo-test: v4.0 -- v3.0
-
-## Release
-* Adding new field - https://api.github.com/repos/knabben/repo-test/issues/8
-
-## Bugfix
-* Changing main file name - https://api.github.com/repos/knabben/repo-test/issues/9
-* Correct serialization on master- https://api.github.com/repos/knabben/repo-test/issues/5
+$ ./chrn rotate --file ~/Projects/CHANGELOG.md --org knabben --repo repo-test --token token --bump minor
 ```
 
-#### Updating Github Release Note
+You can see a new PR opened with the titles update. After merge or rebase on master you are ready to:
 
-It's possible to automatically update the notes from the release, you just need a file with your personal API token, and use it to authenticate.
-
-```
-$ ./chrn --user knabben --repo repo-test -c v4.0 -p v3.0 --token ./token --save
-```
+### Create a new Github release
