@@ -85,3 +85,16 @@ $ ./chrn rotate --file ~/Projects/CHANGELOG.md --org knabben --repo repo-test --
 You can see a new PR opened with the titles update. After merge or rebase on master you are ready to:
 
 ### Create a new Github release
+
+As the last step create a new release with notes as the body:
+
+```
+$ ./chrn note --file ~/Projects/CHANGELOG.md --org knabben --repo repo-test --token token 
+
+>>> Creating a new release using tag 3.1.0 and notes:
+## Bug
+- Some PR title
+
+## Enhancement
+- Another good PR title
+```
