@@ -1,22 +1,12 @@
-// Copyright © 2018 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"regexp"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -24,39 +14,68 @@ import (
 var noteCmd = &cobra.Command{
 	Use:   "note",
 	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		gh := NewClientBasedOnToken(org, token)
 
-		// 		log.Printf("Saving data on: %v", outputFile)
-		// 		f.WriteString(content)
+		chFile, err := os.Open(file)
+		CheckIfError(err)
+		defer chFile.Close()
 
-		// 		if save {
-		// 			log.Printf("Update GITHUB release notes")
-		// 			if err := gh.UpdateReleaseNotes(repo, currentRelease, content); err != nil {
-		// 				log.Printf("Error updating release notes: %s", err)
-		// 			}
-		// 		}
-		// 	},
+		latest, notes := FirstReleaseChangelog(chFile)
 
-		fmt.Println("note called")
+		color.Cyan(fmt.Sprintf(">>> Creating a new release using tag %v and notes:", latest))
+		color.Cyan(notes)
+
+		color.Yellow("Do you Want to proceed?")
+		reader := bufio.NewReader(os.Stdin)
+		continueProcess, _ := reader.ReadString('\n')
+
+		if continueProcess == "y\n" {
+			err = gh.CreateNewRelease(repo, latest, notes)
+			CheckIfError(err)
+		}
 	},
+}
+
+func FirstReleaseChangelog(chFile *os.File) (string, string) {
+	scanner := bufio.NewScanner(chFile)
+	scanner.Split(bufio.ScanLines)
+
+	tag := ""
+	notes := ""
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		re, _ := regexp.Compile(`## \[(?P<tag>.*)\] - `)
+		match := re.FindAllStringSubmatch(line, -1)
+
+		// Tag already set stop
+		if len(match) >= 1 && tag != "" {
+			break
+		}
+		if tag != "" {
+			notes += fmt.Sprintf("%v\n", line)
+		}
+		// Try to find the first tag
+		if len(match) >= 1 && tag == "" {
+			tag = match[0][1]
+		}
+	}
+
+	return tag, notes
 }
 
 func init() {
 	rootCmd.AddCommand(noteCmd)
 
-	// Here you will define your flags and configuration settings.
+	noteCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
+	noteCmd.Flags().StringVar(&org, "org", "knabben", "Github owner or org")
+	noteCmd.Flags().StringVar(&repo, "repo", "", "Github repo")
+	noteCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// noteCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// noteCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	noteCmd.MarkFlagRequired("file")
+	noteCmd.MarkFlagRequired("org")
+	noteCmd.MarkFlagRequired("repo")
 }

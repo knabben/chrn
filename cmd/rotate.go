@@ -103,7 +103,9 @@ func CreateBranch(tag string, repoPath string, auth *ssh.PublicKeys) {
 		RemoteName: "origin",
 		Auth:       auth,
 	})
-	CheckIfError(err)
+	if err != nil {
+		color.Red(fmt.Sprintf("%v", err))
+	}
 
 	headRef, err := repository.Head()
 	CheckIfError(err)
@@ -209,8 +211,8 @@ func init() {
 	rotateCmd.Flags().StringVar(&org, "org", "knabben", "Github owner or org")
 	rotateCmd.Flags().StringVar(&repo, "repo", "", "Github repo")
 	rotateCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
-	rotateCmd.Flags().StringVar(&bump, "bump", "minor", "Bump type [major, minor, patch]")
 	rotateCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
+	rotateCmd.Flags().StringVar(&bump, "bump", "minor", "Bump type [major, minor, patch]")
 
 	rotateCmd.MarkFlagRequired("file")
 	rotateCmd.MarkFlagRequired("org")

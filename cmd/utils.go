@@ -143,14 +143,14 @@ func ContainsString(slice []string, target string) bool {
 }
 
 // UpdateReleaseNotes update github release note
-func (g GithubClient) UpdateReleaseNotes(repo string, tag string, releaseNotes string) error {
-	release, _, err := g.client.Repositories.GetReleaseByTag(context.Background(), g.owner, repo, tag)
-	if err != nil {
-		return err
+func (g GithubClient) CreateNewRelease(repo string, tag string, releaseNotes string) error {
+	repoRelease := &github.RepositoryRelease{
+		Name:    github.String(tag),
+		TagName: github.String(tag),
+		Body:    github.String(releaseNotes),
 	}
 
-	*release.Body = releaseNotes
-	_, _, err = g.client.Repositories.EditRelease(context.Background(), g.owner, repo, *release.ID, release)
+	_, _, err := g.client.Repositories.CreateRelease(context.Background(), g.owner, repo, repoRelease)
 	if err != nil {
 		return err
 	}
