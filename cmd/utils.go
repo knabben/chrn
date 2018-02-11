@@ -1,11 +1,13 @@
-package main
+package cmd
 
 import (
 	"context"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 )
@@ -36,6 +38,16 @@ type GithubClient struct {
 	token  string
 }
 
+func NewClientBasedOnToken(organization string, tokenFile string) *GithubClient {
+	token, err := GetAPITokenFromFile(tokenFile)
+
+	if err != nil {
+		return NewGithubClientNoAuth(organization)
+	}
+
+	return NewGithubClient(organization, token)
+}
+
 // NewGithubClient creates a new GithubClient with proper authentication
 func NewGithubClient(owner, token string) *GithubClient {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
@@ -59,6 +71,22 @@ func GetAPITokenFromFile(tokenFile string) (string, error) {
 	}
 	token := strings.TrimSpace(string(b[:]))
 	return token, nil
+}
+
+// CreateNewPR creates a new PR from a branch
+func (g GithubClient) CreateNewPR(repo string, branch string, user string) (*github.PullRequest, error) {
+	input := &github.NewPullRequest{
+		Title: github.String(fmt.Sprintf("Release %v", branch)),
+		Body:  github.String(fmt.Sprintf("Release %v", branch)),
+		Head:  github.String(fmt.Sprintf("%v", branch)),
+		Base:  github.String("master"),
+	}
+
+	pr, _, err := g.client.PullRequests.Create(context.Background(), g.owner, repo, input)
+	if err != nil {
+		return nil, err
+	}
+	return pr, nil
 }
 
 // GetLatestRelease get the latest release version
@@ -126,4 +154,14 @@ func (g GithubClient) UpdateReleaseNotes(repo string, tag string, releaseNotes s
 	}
 
 	return nil
+}
+
+// CheckIfError should be used to naively panics if an error is not nil.
+func CheckIfError(err error) {
+	if err == nil {
+		return
+	}
+
+	color.Red(fmt.Sprintf("error: %s", err))
+	os.Exit(1)
 }
