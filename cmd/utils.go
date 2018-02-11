@@ -3,13 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/google/go-github/github"
-	"golang.org/x/oauth2"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 )
 
 type PR struct {
@@ -91,6 +92,7 @@ func (g GithubClient) CreateNewPR(repo string, branch string, user string) (*git
 
 // GetLatestRelease get the latest release version
 func (g GithubClient) GetLatestRelease(repo string) (string, error) {
+	fmt.Println(repo)
 	release, _, err := g.client.Repositories.GetLatestRelease(context.Background(), g.owner, repo)
 	if err != nil {
 		return "", err

@@ -20,7 +20,6 @@ import (
 )
 
 var (
-	file string
 	bump string
 
 	rotateCmd = &cobra.Command{
@@ -182,10 +181,10 @@ func ReadFileAndReplace(chFile *os.File, tag string) []string {
 			match := re.FindAllStringSubmatch(line, -1)[0]
 
 			ghUrl := match[1]
-			oldTag := match[2]
+			oldTag := strings.Replace(match[2], "v", "", -1)
 
 			line = fmt.Sprintf(
-				"[Unreleased]: %v/v%v...HEAD\n[%v]: v%v/v%v...%v",
+				"[Unreleased]: %v/v%v...HEAD\n[%v]: %v/v%v...v%v",
 				ghUrl, tag, tag, ghUrl, oldTag, tag,
 			)
 		}
@@ -198,11 +197,11 @@ func ReadFileAndReplace(chFile *os.File, tag string) []string {
 func init() {
 	rootCmd.AddCommand(rotateCmd)
 
-	rotateCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
 	rotateCmd.Flags().StringVar(&org, "org", "knabben", "Github owner or org")
 	rotateCmd.Flags().StringVar(&repo, "repo", "", "Github repo")
 	rotateCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
 	rotateCmd.Flags().StringVar(&bump, "bump", "minor", "Bump type [major, minor, patch]")
+	rotateCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
 
 	rotateCmd.MarkFlagRequired("file")
 	rotateCmd.MarkFlagRequired("org")

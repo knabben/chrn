@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -8,97 +9,84 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/go-github/github"
 	"github.com/spf13/cobra"
 )
 
 // changelogCmd represents the changelog command
 var (
-	gh              *GithubClient
-	save            bool
 	label           string
-	outputFile      string
-	previousRelease string
 	currentRelease  string
+	previousRelease string
 
 	changelogCmd = &cobra.Command{
 		Use:   "changelog",
-		Short: "A brief description of your command",
+		Short: "Fetch last changelog from branches",
 		Long:  ``,
 		PreRun: func(cmd *cobra.Command, args []string) {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			f, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0600)
+			gh := NewClientBasedOnToken(org, token)
 
-			if err != nil {
-				log.Printf("Failed to open and/or create output file %s", outputFile)
-				return
-			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					log.Printf("Error during closing file %s: %s\n", outputFile, err)
-				}
-			}()
+			color.Cyan(">>> Start fetching unreleased release note from %s/%s", org, repo)
+			query, err := createQueryString(repo, gh)
+			CheckIfError(err)
 
-			// 		log.Printf("Start fetching release note from %s/%s", org, repo)
-			// 		queries, err := createQueryString(repo)
-			// 		if err != nil {
-			// 			log.Printf("Failed to create query string for %s", repo)
-			// 			return
-			// 		}
+			color.Cyan(">>> Getting PRs for %v", query)
+			prList, err := gh.SearchIssues(query, "")
+			CheckIfError(err)
 
-			// 		log.Printf("Query: %v", queries)
-			// 		issuesResult, err := gh.SearchIssues(queries, "")
-			// 		if err != nil {
-			// 			log.Printf("Failed to fetch PR with release note for %s: %s", repo, err)
-			// 			return
-			// 		}
-			// 		content := groupedLabelContent(issuesResult)
+			color.Cyan(">>> Modifying changelog file")
+			content := groupOtherLabels(prList)
+			fmt.Println(content)
 
-			// 		log.Printf("Saving data on: %v", outputFile)
-			// 		f.WriteString(content)
+			chFile, err := os.Open(file)
+			CheckIfError(err)
+			defer chFile.Close()
 
-			// 		if save {
-			// 			log.Printf("Update GITHUB release notes")
-			// 			if err := gh.UpdateReleaseNotes(repo, currentRelease, content); err != nil {
-			// 				log.Printf("Error updating release notes: %s", err)
-			// 			}
-			// 		}
-			// 	},
-
-			// fmt.Println("changelog called")
+			newLines := ReadFileAndReplace2(chFile, content)
+			WriteLinesNewFile(newLines, file)
 		},
 	}
 )
 
-func createQueryString(repo string) ([]string, error) {
+// ReadFileAndReplace read a changelog and replace for new entries
+func ReadFileAndReplace2(chFile *os.File, content string) []string {
+	scanner := bufio.NewScanner(chFile)
+	scanner.Split(bufio.ScanLines)
+
+	lines := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "## [Unreleased]") {
+			// Title header change.
+			line = fmt.Sprintf("%v%v", line, content)
+		}
+		lines = append(lines, fmt.Sprintf("%v\n", line))
+	}
+	return lines
+}
+
+func createQueryString(repo string, gh *GithubClient) ([]string, error) {
 	var queries []string
 
-	startTime, err := getReleaseTime(repo, previousRelease)
-	if err != nil {
-		log.Printf("Failed to get created time of previous release -- %s: %s", previousRelease, err)
-		return nil, err
-	}
+	color.Green(fmt.Sprintf("Last release version: %s", currentRelease))
 
-	if currentRelease == "" {
-		if currentRelease, err = gh.GetLatestRelease(repo); err != nil {
-			log.Printf("Failed to get latest release version when current_release is missing: %s", err)
-			return nil, err
-		}
-		log.Printf("Last release version: %s", currentRelease)
-	}
-	endTime, err := getReleaseTime(repo, currentRelease)
-	if err != nil {
-		log.Printf("Failed to get created time of current release -- %s: %s", currentRelease, err)
-		return nil, err
-	}
+	currentRelease, err := gh.GetLatestRelease(repo)
+	CheckIfError(err)
+
+	startTime, err := getReleaseTime(repo, currentRelease, gh)
+	CheckIfError(err)
+
+	endTime := time.Now().UTC().Format(time.RFC3339)
 
 	queries = addQuery(queries, "repo", org, "/", repo)
 	queries = addQuery(queries, "label", label)
 	queries = addQuery(queries, "is", "merged")
 	queries = addQuery(queries, "type", "pr")
-	queries = addQuery(queries, "merged", startTime, "..", endTime)
 	queries = addQuery(queries, "base", "master")
+	queries = addQuery(queries, "merged", startTime, "..", endTime)
 
 	return queries, nil
 }
@@ -117,8 +105,8 @@ func addQuery(queries []string, queryParts ...string) []string {
 	return append(queries, fmt.Sprintf("%s:%s", queryParts[0], strings.Join(queryParts[1:], "")))
 }
 
-func getReleaseTime(repo, release string) (string, error) {
-	time, err := getReleaseTagCreationTime(repo, release)
+func getReleaseTime(repo, release string, gh *GithubClient) (string, error) {
+	time, err := getReleaseTagCreationTime(repo, release, gh)
 	if err != nil {
 		log.Println("Failed to get created time of this release tag")
 		return "", err
@@ -130,7 +118,7 @@ func getReleaseTime(repo, release string) (string, error) {
 	return timeString, nil
 }
 
-func getReleaseTagCreationTime(repo, tag string) (createTime time.Time, err error) {
+func getReleaseTagCreationTime(repo, tag string, gh *GithubClient) (createTime time.Time, err error) {
 	createTime, err = gh.GetReleaseTagCreationTime(repo, tag)
 	if err != nil {
 		log.Printf("Cannot get the creation time of %s/%s", repo, tag)
@@ -139,7 +127,7 @@ func getReleaseTagCreationTime(repo, tag string) (createTime time.Time, err erro
 	return createTime, nil
 }
 
-func groupedLabelContent(issuesResult *github.IssuesSearchResult) string {
+func groupOtherLabels(issuesResult *github.IssuesSearchResult) string {
 	prGrouper := []PR{}
 	existentLabels := make([]string, 3)
 
@@ -154,13 +142,13 @@ func groupedLabelContent(issuesResult *github.IssuesSearchResult) string {
 	}
 	sort.Sort(ByLabel(prGrouper))
 
-	content := fmt.Sprintf("%s: %s -- %s\n", repo, currentRelease, previousRelease)
+	content := ""
 	for _, issue := range prGrouper {
 		if !ContainsString(existentLabels, issue.Type) {
 			content += fmt.Sprintf("\n## %s\n", strings.Title(issue.Type))
 			existentLabels = append(existentLabels, issue.Type)
 		}
-		content += fmt.Sprintf("* %s - %s\n", issue.Title, issue.Link)
+		content += fmt.Sprintf("- %s\n", issue.Title)
 	}
 	return content
 }
@@ -168,15 +156,14 @@ func groupedLabelContent(issuesResult *github.IssuesSearchResult) string {
 func init() {
 	rootCmd.AddCommand(changelogCmd)
 
-	changelogCmd.Flags().BoolVarP(&save, "save", "v", false, "Save release notes on Github")
-
+	changelogCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
 	changelogCmd.Flags().StringVar(&org, "org", "knabben", "Github owner or org")
 	changelogCmd.Flags().StringVar(&repo, "repo", "", "Github repo")
-	changelogCmd.Flags().StringVar(&token, "token", "", "Github token file (optional)")
+	changelogCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
 
-	changelogCmd.Flags().StringVar(&label, "label", "", "Release-note label")
-	changelogCmd.Flags().StringVar(&outputFile, "output", "./release-note", "Path to output file")
+	changelogCmd.Flags().StringVar(&label, "label", "release-note", "Release-note label")
 
-	changelogCmd.Flags().StringVar(&previousRelease, "previous_release", "", "Previous release")
-	changelogCmd.Flags().StringVar(&currentRelease, "current_release", "", "Current release")
+	changelogCmd.MarkFlagRequired("file")
+	changelogCmd.MarkFlagRequired("org")
+	changelogCmd.MarkFlagRequired("repo")
 }

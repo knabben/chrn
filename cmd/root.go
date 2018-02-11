@@ -13,6 +13,7 @@ var (
 	token string
 	org   string
 	repo  string
+	file  string
 
 	rootCmd = &cobra.Command{
 		Use:   "chrn",
