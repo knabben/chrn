@@ -67,6 +67,8 @@ func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, 
 		if continueProcess == "y\n" || continueProcess == "yes\n" {
 			color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
 			PushOpenPR(dir, gh, latestTag, auth)
+			os.Exit(0)
+
 		} else if continueProcess == "n\n" || continueProcess == "no\n" {
 			os.Exit(1)
 		}

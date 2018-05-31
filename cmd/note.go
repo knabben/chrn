@@ -35,6 +35,8 @@ var noteCmd = &cobra.Command{
 			if continueProcess == "y\n" || continueProcess == "yes\n" {
 				err = gh.CreateNewRelease(repo, latest, notes)
 				CheckIfError(err)
+				os.Exit(0)
+
 			} else if continueProcess == "n\n" || continueProcess == "no\n" {
 				os.Exit(1)
 			}
