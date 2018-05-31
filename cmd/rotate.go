@@ -58,13 +58,18 @@ func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, 
 	color.Cyan(fmt.Sprintf(">> Commiting to the branch"))
 	AddCommitBranch(dir, fileName, latestTag)
 
-	color.Yellow("Do you Want to proceed?")
-	reader := bufio.NewReader(os.Stdin)
-	continueProcess, _ := reader.ReadString('\n')
+	for {
+		color.Yellow("Do you Want to proceed? [y|yes]")
 
-	if continueProcess == "y\n" {
-		color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
-		PushOpenPR(dir, gh, latestTag, auth)
+		reader := bufio.NewReader(os.Stdin)
+		continueProcess, _ := reader.ReadString('\n')
+
+		if continueProcess == "y\n" || continueProcess == "yes\n" {
+			color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
+			PushOpenPR(dir, gh, latestTag, auth)
+		} else if continueProcess == "n\n" || continueProcess == "no\n" {
+			os.Exit(1)
+		}
 	}
 
 }

@@ -27,13 +27,17 @@ var noteCmd = &cobra.Command{
 		color.Cyan(fmt.Sprintf(">>> Creating a new release using tag %v and notes:", latest))
 		color.Cyan(notes)
 
-		color.Yellow("Do you Want to proceed?")
-		reader := bufio.NewReader(os.Stdin)
-		continueProcess, _ := reader.ReadString('\n')
+		for {
+			color.Yellow("Do you Want to proceed? [y|yes]")
+			reader := bufio.NewReader(os.Stdin)
+			continueProcess, _ := reader.ReadString('\n')
 
-		if continueProcess == "y\n" {
-			err = gh.CreateNewRelease(repo, latest, notes)
-			CheckIfError(err)
+			if continueProcess == "y\n" || continueProcess == "yes\n" {
+				err = gh.CreateNewRelease(repo, latest, notes)
+				CheckIfError(err)
+			} else if continueProcess == "n\n" || continueProcess == "no\n" {
+				os.Exit(1)
+			}
 		}
 	},
 }
