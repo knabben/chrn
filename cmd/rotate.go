@@ -209,7 +209,7 @@ func ReadFileAndReplace(chFile *os.File, tag string) []string {
 			oldTag := strings.Replace(match[2], "v", "", -1)
 
 			line = fmt.Sprintf(
-				"[Unreleased]: %v/v%v...HEAD\n[%v]: %v/v%v...v%v",
+				"[Unreleased]: %v/%v...HEAD\n[%v]: %v/%v...%v",
 				ghUrl, tag, tag, ghUrl, oldTag, tag,
 			)
 		}
