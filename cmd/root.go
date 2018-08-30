@@ -10,10 +10,11 @@ import (
 var cfgFile string
 
 var (
-	token string
-	org   string
-	repo  string
-	file  string
+	token       string
+	org         string
+	repo        string
+	file        string
+	versionFile string
 
 	rootCmd = &cobra.Command{
 		Use:   "chrn",
@@ -22,6 +23,7 @@ var (
 	}
 )
 
+// Execute child commands
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

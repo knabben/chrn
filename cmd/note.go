@@ -23,7 +23,6 @@ var noteCmd = &cobra.Command{
 		defer chFile.Close()
 
 		latest, notes := FirstReleaseChangelog(chFile)
-
 		color.Cyan(fmt.Sprintf(">>> Creating a new release using tag %v and notes:", latest))
 		color.Cyan(notes)
 
@@ -44,6 +43,7 @@ var noteCmd = &cobra.Command{
 	},
 }
 
+// FirstReleaseChangelog find the first tag on changelog
 func FirstReleaseChangelog(chFile *os.File) (string, string) {
 	scanner := bufio.NewScanner(chFile)
 	scanner.Split(bufio.ScanLines)

@@ -46,30 +46,34 @@ var (
 	}
 )
 
+// RunRotate rotate changelog with a new PR
 func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, auth *ssh.PublicKeys) {
 	color.Cyan(fmt.Sprintf(">> Using %v as the latest version for this project.", latestTag))
 
-	color.Cyan(fmt.Sprintf(">> Creating a new branch"))
-	CreateBranch(latestTag, dir, auth)
+	color.Cyan(fmt.Sprintf(">> Creating a new branch.. release/%s", latestTag))
+	CreateBranchAndCheckout(latestTag, dir, auth)
+	color.Green(fmt.Sprintf(">> Branch created."))
 
 	color.Cyan(fmt.Sprintf(">> Bumping changelog file"))
-	UpdateLogFile(latestTag)
+	UpdateFiles(latestTag)
+	color.Green(fmt.Sprintf(">> Changelog/version modified."))
 
 	color.Cyan(fmt.Sprintf(">> Commiting to the branch"))
 	AddCommitBranch(dir, fileName, latestTag)
+	color.Green(fmt.Sprintf(">> Branch commited."))
 
 	for {
-		color.Yellow("Do you Want to proceed? [y|yes]")
+		color.Yellow("Opening PR, do you Want to proceed? [y|yes]")
 
 		reader := bufio.NewReader(os.Stdin)
 		continueProcess, _ := reader.ReadString('\n')
 
 		if continueProcess == "y\n" || continueProcess == "yes\n" {
-			color.Cyan(fmt.Sprintf(">> Pushing to remote and opening a PR"))
 			PushOpenPR(dir, gh, latestTag, auth)
 			os.Exit(0)
 
 		} else if continueProcess == "n\n" || continueProcess == "no\n" {
+			color.Red(fmt.Sprintf(">> Cya."))
 			os.Exit(1)
 		}
 	}
@@ -80,14 +84,19 @@ func RunRotate(latestTag string, dir string, fileName string, gh *GithubClient, 
 func PushOpenPR(repoPath string, gh *GithubClient, tag string, auth *ssh.PublicKeys) {
 	repository, _ := git.PlainOpen(repoPath)
 
+	color.Cyan(fmt.Sprintf(">> Pushing to remote..."))
 	err := repository.Push(&git.PushOptions{
 		Auth:       auth,
 		RemoteName: "origin",
 	})
 	CheckIfError(err)
 
-	_, err = gh.CreateNewPR(repo, tag, org)
+	color.Cyan(fmt.Sprintf(">> Creating a new PR..."))
+	pr, err := gh.CreateNewPR(repo, tag, org)
 	CheckIfError(err)
+
+	color.Green(fmt.Sprintf(pr.GetHTMLURL()))
+	color.Green(fmt.Sprintf(">> PR openend."))
 }
 
 // CommitPushBranch add modified file commit it and push branch
@@ -96,6 +105,9 @@ func AddCommitBranch(repoPath string, fileName string, tag string) {
 	worktree, _ := repository.Worktree()
 
 	_, err := worktree.Add(fileName)
+	CheckIfError(err)
+
+	_, err = worktree.Add(versionFile)
 	CheckIfError(err)
 
 	_, err = worktree.Commit(fmt.Sprintf("Release %v", tag), &git.CommitOptions{
@@ -108,11 +120,12 @@ func AddCommitBranch(repoPath string, fileName string, tag string) {
 	CheckIfError(err)
 }
 
-// CreateBranch creates a new branch checkout
-func CreateBranch(tag string, repoPath string, auth *ssh.PublicKeys) {
+// CreateBranchAndCheckout creates a new branch checkout
+func CreateBranchAndCheckout(tag string, repoPath string, auth *ssh.PublicKeys) {
 	repository, _ := git.PlainOpen(repoPath)
 	worktree, _ := repository.Worktree()
 
+	color.Cyan(fmt.Sprintf("Pulling repo..."))
 	err := worktree.Pull(&git.PullOptions{
 		RemoteName: "origin",
 		Auth:       auth,
@@ -124,7 +137,7 @@ func CreateBranch(tag string, repoPath string, auth *ssh.PublicKeys) {
 	headRef, err := repository.Head()
 	CheckIfError(err)
 
-	branch := plumbing.ReferenceName(fmt.Sprintf("refs/heads/%v", tag))
+	branch := plumbing.ReferenceName(fmt.Sprintf("refs/heads/release/%v", tag))
 	ref := plumbing.NewHashReference(branch, headRef.Hash())
 	err = repository.Storer.SetReference(ref)
 	CheckIfError(err)
@@ -133,14 +146,20 @@ func CreateBranch(tag string, repoPath string, auth *ssh.PublicKeys) {
 	CheckIfError(err)
 }
 
-// UpdateLogFile update files with new content
-func UpdateLogFile(tag string) {
+// UpdateFiles update files with new content:
+// allowed files are changelog and version.py
+func UpdateFiles(tag string) {
+	// CHANGELOG.md
 	chFile, err := os.Open(file)
 	CheckIfError(err)
 	defer chFile.Close()
+	changeLogNewLines := BumpChangelogFile(chFile, tag)
+	WriteLinesNewFile(changeLogNewLines, file)
 
-	newLines := ReadFileAndReplace(chFile, tag)
-	WriteLinesNewFile(newLines, file)
+	// version.py
+	WriteLinesNewFile(
+		[]string{fmt.Sprintf("VERSION = \"%s\"", tag)}, versionFile,
+	)
 }
 
 // BumpLastTagVersion finds the last release tag and bump it
@@ -182,8 +201,8 @@ func WriteLinesNewFile(lines []string, filename string) error {
 	return nil
 }
 
-// ReadFileAndReplace read a changelog and replace for new entries
-func ReadFileAndReplace(chFile *os.File, tag string) []string {
+// BumpChangelogFile read a changelog and replace for new entries
+func BumpChangelogFile(chFile *os.File, tag string) []string {
 	scanner := bufio.NewScanner(chFile)
 	scanner.Split(bufio.ScanLines)
 
@@ -227,6 +246,7 @@ func init() {
 	rotateCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
 	rotateCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
 	rotateCmd.Flags().StringVar(&bump, "bump", "minor", "Bump type [major, minor, patch]")
+	rotateCmd.Flags().StringVar(&versionFile, "version", "version", "head/version.py", "Default version file")
 
 	rotateCmd.MarkFlagRequired("file")
 	rotateCmd.MarkFlagRequired("org")
