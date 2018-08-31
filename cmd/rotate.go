@@ -246,7 +246,7 @@ func init() {
 	rotateCmd.Flags().StringVar(&token, "token", "./token", "Github token file (optional)")
 	rotateCmd.Flags().StringVar(&file, "file", "", "CHANGELOG.md")
 	rotateCmd.Flags().StringVar(&bump, "bump", "minor", "Bump type [major, minor, patch]")
-	rotateCmd.Flags().StringVar(&versionFile, "version", "version", "head/version.py", "Default version file")
+	rotateCmd.Flags().StringVar(&versionFile, "version", "head/version.py", "Default version file")
 
 	rotateCmd.MarkFlagRequired("file")
 	rotateCmd.MarkFlagRequired("org")
