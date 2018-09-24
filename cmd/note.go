@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -32,7 +33,7 @@ var noteCmd = &cobra.Command{
 			continueProcess, _ := reader.ReadString('\n')
 
 			if continueProcess == "y\n" || continueProcess == "yes\n" {
-				err = gh.CreateNewRelease(repo, latest, notes)
+				err = gh.CreateNewRelease(repo, latest, strings.Trim(notes, "\n"))
 				CheckIfError(err)
 				os.Exit(0)
 
