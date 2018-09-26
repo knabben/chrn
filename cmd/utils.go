@@ -77,7 +77,7 @@ func GetAPITokenFromFile(tokenFile string) (string, error) {
 // CreateNewPR creates a new PR from a branch
 func (g GithubClient) CreateNewPR(repo string, branch string, user string) (*github.PullRequest, error) {
 	newPr := &github.NewPullRequest{
-		Title: github.String(fmt.Sprintf("Release %v", branch)),
+		Title: github.String(fmt.Sprintf("[Release] %v", branch)),
 		Body:  github.String(fmt.Sprintf("Release %v", branch)),
 		Head:  github.String(fmt.Sprintf("release/%v", branch)),
 		Base:  github.String("master"),
